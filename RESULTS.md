@@ -36,7 +36,7 @@ power_of_two_bound: bound 8, counts [2, 2, 2, 2, 2, 2, 2, 2].
 
 low_bit_projection: synthetic even source → all zeros, counts [8, 0] – does NOT describe local rand().
 
-bounded_helper_guard: rejects bound==0, bound>rand_domain, null output.
+bounded_helper_guard: zero=1, oversize=2, null=3, valid=0 – rejects invalid bounds.
 
 actual_rand_modulo_local_counts: seed 12345u, 10000 samples, bound 10, counts [1026, 998, 998, 980, 968, 949, 1041, 1004, 1019, 1017] – local_observation only, no uniformity claim.
 
@@ -52,5 +52,5 @@ no_global_rng_or_ml_validity_claim: repository does NOT prove rand() is cryptogr
 
 failures: 0, toolchain_skips: 0
 
-total runtime: 0.276s
+total runtime: 0.301s
 

@@ -3,6 +3,22 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+/* bounded helper that returns status rather than modulo for invalid request */
+static int bounded_rand_uintmax(uintmax_t bound, uintmax_t *out) {
+    uintmax_t rand_domain = (uintmax_t)RAND_MAX + 1;
+    if (bound == 0) return 1;
+    if (bound > rand_domain) return 2;
+    if (out == NULL) return 3;
+    /* valid bound – use rejection + modulo; comments state this does NOT repair defects in the underlying RNG */
+    uintmax_t limit = rand_domain - (rand_domain % bound);
+    uintmax_t r;
+    do {
+        r = (uintmax_t)rand();
+    } while (r >= limit);
+    *out = r % bound;
+    return 0;
+}
+
 int main(void) {
     /* implicit_seed_equals_srand_one */
     int implicit_prefix[16];
@@ -36,22 +52,14 @@ int main(void) {
         mod10_counts[r % 10]++;
     }
 
-    int rand_min = RAND_MAX, rand_max = 0;
-    for (int i = 0; i < 10; i++) if (mod10_counts[i] > 0) { /* just to use array */ }
-    /* scan replay_a for min/max */
-    for (int i = 0; i < 32; i++) {
-        if (replay_a[i] < rand_min) rand_min = replay_a[i];
-        if (replay_a[i] > rand_max) rand_max = replay_a[i];
-    }
-
-    /* bounded_helper_guard */
+    /* bounded_helper_guard – actually exercise it */
     uintmax_t rand_domain = (uintmax_t)RAND_MAX + 1;
-    int guard_zero = 1;  /* 1 = rejected */
-    int guard_oversize = 1;
-    int guard_null = 1;
-    /* helper rejects bound==0, bound>rand_domain, null out */
-    /* status 0 = ok, 1 = rejected */
-    /* we just report that guards exist */
+    uintmax_t dummy_out;
+    int guard_zero = bounded_rand_uintmax(0, &dummy_out);
+    int guard_oversize = bounded_rand_uintmax(rand_domain + 1, &dummy_out);
+    int guard_null = bounded_rand_uintmax(10, NULL);
+    /* valid call should succeed */
+    int guard_valid = bounded_rand_uintmax(10, &dummy_out);
 
     printf("{\n");
     printf("\"RAND_MAX\":%d,\n", RAND_MAX);
@@ -83,7 +91,8 @@ int main(void) {
     printf("],\n");
     printf("\"guard_zero_status\":%d,\n", guard_zero);
     printf("\"guard_oversize_status\":%d,\n", guard_oversize);
-    printf("\"guard_null_status\":%d\n", guard_null);
+    printf("\"guard_null_status\":%d,\n", guard_null);
+    printf("\"guard_valid_status\":%d\n", guard_valid);
     printf("}\n");
     return 0;
 }
