@@ -52,5 +52,5 @@ no_global_rng_or_ml_validity_claim: repository does NOT prove rand() is cryptogr
 
 failures: 0, toolchain_skips: 0
 
-total runtime: 0.264s
+total runtime: 0.168s
 

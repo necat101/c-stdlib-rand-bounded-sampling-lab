@@ -60,11 +60,11 @@ if toolchain_available:
 else:
     zig_version="toolchain_unavailable"; zig_repr="toolchain_unavailable"; cc_ver="toolchain_unavailable"; compile_flags=[]; compile_exit=-1; sanitized=False; c_run_ok=False; cinfo={}
 
-# defaults when c helper unavailable
-RAND_MAX = cinfo.get("RAND_MAX", 32767)
-sizeof_int = cinfo.get("sizeof_int", 4)
-rand_domain = cinfo.get("rand_domain_size", 2147483648)
-mod10_counts = cinfo.get("mod10_counts", [0]*10)
+# C metadata – None when unavailable (do NOT fabricate plausible defaults)
+RAND_MAX = cinfo.get("RAND_MAX")
+sizeof_int = cinfo.get("sizeof_int")
+rand_domain = cinfo.get("rand_domain_size")
+mod10_counts = cinfo.get("mod10_counts")
 
 def h_ints(arr): return hashlib.sha256(json.dumps(arr, separators=(",",":")).encode()).hexdigest()[:16]
 
@@ -103,6 +103,7 @@ mb_acc_counts=[0]*10
 for x in range(250): mb_acc_counts[x%10]+=1
 
 # handler functions – return (actual_classification, data_dict, failure_reason)
+# IMPORTANT: handlers MUST NOT consult expected() – actual classification is derived independently
 def handle_inspect_toolchain(case_id):
     if case_id=="zig_compiler_marker":
         if not toolchain_available:
@@ -115,17 +116,22 @@ def handle_inspect_toolchain(case_id):
     return "not_applicable", {}, None
 
 def handle_exercise_c_stdlib(case_id):
+    # c_stdlib cases – return toolchain_skip if c unavailable, otherwise evaluate independently
+    c_cases = {
+        "c_rand_api_marker","rand_max_marker","implicit_seed_equals_srand_one_marker",
+        "same_seed_replay_marker","seed_reset_prefix_marker","sequence_portability_limit_marker",
+        "bounded_helper_guard_marker","actual_rand_modulo_local_counts_marker"
+    }
+    if case_id not in c_cases:
+        return "not_applicable", {}, None
     if not toolchain_available or not c_run_ok:
-        # context-only rows that don't need c should still run – but this handler is c_stdlib only
-        # check if expectation is not_applicable
-        if expected(case_id, "exercise_c_stdlib")=="not_applicable":
-            return "not_applicable", {}, None
         return "toolchain_skip", {}, "zig/c unavailable"
     # actual independent checks
     if case_id=="c_rand_api_marker":
-        if RAND_MAX < 32767: return "fail", {}, "RAND_MAX < 32767"
+        if RAND_MAX is None or RAND_MAX < 32767: return "fail", {}, "RAND_MAX < 32767 or unavailable"
         return "pass", {}, None
     if case_id=="rand_max_marker":
+        if RAND_MAX is None: return "fail", {}, "RAND_MAX unavailable"
         return "pass", {}, None
     if case_id=="implicit_seed_equals_srand_one_marker":
         ip=cinfo.get("implicit_prefix"); sp=cinfo.get("srand1_prefix")
@@ -151,13 +157,21 @@ def handle_exercise_c_stdlib(case_id):
         if gv != 0: return "fail", {}, "valid guard call failed"
         return "pass", {}, None
     if case_id=="actual_rand_modulo_local_counts_marker":
-        counts=cinfo.get("mod10_counts")
+        counts=mod10_counts
         if not counts or sum(counts)!=10000: return "fail", {}, "bad modulo counts"
         return "local_observation", {}, None
-    return "not_applicable", {}, None
+    return "fail", {}, "unhandled c_stdlib case"
 
 def handle_enumerate_mapping(case_id):
-    # pure python, no toolchain needed
+    # pure python, no toolchain needed – enumerate independently
+    mapping_cases = {
+        "toy_divisible_modulo_marker","toy_nondivisible_modulo_marker",
+        "rejection_threshold_marker","rejection_uniformity_marker","power_of_two_bound_marker",
+        "low_bit_projection_marker","three_item_shuffle_modulo_marker",
+        "three_item_shuffle_accepted_draw_space_marker","tiny_minibatch_index_sampler_marker"
+    }
+    if case_id not in mapping_cases:
+        return "not_applicable", {}, None
     if case_id=="toy_divisible_modulo_marker":
         if div_counts != [4,4,4,4]: return "fail", {}, "divisible counts wrong"
         return "pass", {}, None
@@ -186,18 +200,19 @@ def handle_enumerate_mapping(case_id):
         if mb_counts != [26,26,26,26,26,26,25,25,25,25]: return "fail", {}, "mb counts wrong"
         if mb_acc_counts != [25]*10: return "fail", {}, "mb accepted counts wrong"
         return "pass", {}, None
-    return "not_applicable", {}, None
+    return "fail", {}, "unhandled mapping case"
 
 def handle_ml_context_observation(case_id):
-    # context-only, no toolchain dependency
-    exp = expected(case_id, "ml_context_observation")
-    if exp in ("context_only", "local_observation"):
-        return exp, {}, None
-    if exp == "not_applicable":
-        return "not_applicable", {}, None
-    # unexpected – still return expected if it's a valid classification
-    if exp in ("pass","expected_error","local_observation","context_only","toolchain_skip","fail","not_applicable"):
-        return exp, {}, None
+    # ML context observations – independent classification, no expected() lookup
+    # These cases are context-only by design, documenting what the lab does NOT prove
+    ml_context_cases = {
+        "sequence_portability_limit_marker": "context_only",
+        "tiny_minibatch_index_sampler_marker": "context_only",
+        "range_reduction_not_rng_quality_marker": "context_only",
+        "no_global_rng_or_ml_validity_claim_marker": "context_only",
+    }
+    if case_id in ml_context_cases:
+        return ml_context_cases[case_id], {}, None
     return "not_applicable", {}, None
 
 handlers = {
@@ -225,10 +240,8 @@ def build_row(case_id, method):
             actual_cls = "fail"; failure_reason = str(e)[:200]
     if actual_cls is None:
         actual_cls = "fail"; failure_reason = failure_reason or "handler did not assign classification"
-    # if expected is not_applicable, force actual to match
-    if exp_cls == "not_applicable":
-        actual_cls = "not_applicable"
-    # toolchain_skip handling
+    # DO NOT force actual = expected – actual classification is independent
+    # Handlers are responsible for returning not_applicable when appropriate
     if actual_cls == "toolchain_skip":
         skip_reason = failure_reason or "toolchain unavailable"
         failure_reason = None
@@ -393,7 +406,8 @@ with open("RESULTS.md","w") as f:
     if toolchain_available and c_run_ok:
         gz=cinfo.get('guard_zero_status'); go=cinfo.get('guard_oversize_status'); gn=cinfo.get('guard_null_status'); gv=cinfo.get('guard_valid_status')
         f.write(f"bounded_helper_guard: zero={gz}, oversize={go}, null={gn}, valid={gv} – rejects invalid bounds.\n\n")
-        f.write(f"actual_rand_modulo_local_counts: seed 12345u, 10000 samples, bound 10, counts {mod10_counts} – local_observation only, no uniformity claim.\n\n")
+        if mod10_counts:
+            f.write(f"actual_rand_modulo_local_counts: seed 12345u, 10000 samples, bound 10, counts {mod10_counts} – local_observation only, no uniformity claim.\n\n")
     f.write(f"three_item_shuffle_modulo: 16 raw pairs, permutation counts multiset {perm_multiset} (biased).\n\n")
     f.write("three_item_shuffle_accepted_draw_space: 6 accepted pairs → 6 permutations exactly once.\n\n")
     f.write(f"tiny_minibatch_index_sampler: byte domain 0..255 mod 10 → {mb_counts} (0..5 get 26, 6..9 get 25), rejected {mb_rejected}, accepted counts {mb_acc_counts} – index sampling only, no training.\n\n")
