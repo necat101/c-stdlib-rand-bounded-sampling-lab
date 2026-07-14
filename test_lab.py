@@ -6,6 +6,22 @@ with open("results_rows.json") as f: rows=json.load(f)
 case_ids=[c["id"] for c in cases]
 
 class TestLab(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        import subprocess, os, shutil
+        if not os.path.exists("./rand_lab"):
+            # try to build with zig
+            zig=None
+            for c in [os.environ.get("ZIG_BIN"), shutil.which("zig"), os.path.expanduser("~/.local/bin/zig"), os.path.expanduser("~/bin/zig"), os.path.expanduser("~/.local/zig/zig")]:
+                if c and os.path.isfile(c) and os.access(c, os.X_OK):
+                    zig=c; break
+            if zig:
+                try:
+                    subprocess.check_call([zig,"cc","-std=c11","-O2","-Wall","-Wextra","-Wpedantic","-Werror","rand_lab.c","-o","rand_lab"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+                except Exception:
+                    pass
+
     def test_case_count(self):
         self.assertEqual(len(cases),20)
         ids=case_ids
