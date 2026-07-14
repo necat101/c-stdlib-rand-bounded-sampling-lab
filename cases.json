@@ -1,0 +1,22 @@
+[
+  {"id": "zig_compiler_marker", "description": "verify zig cc toolchain"},
+  {"id": "c_rand_api_marker", "description": "exercise rand/srand/RAND_MAX"},
+  {"id": "rand_max_marker", "description": "record RAND_MAX and domain size"},
+  {"id": "implicit_seed_equals_srand_one_marker", "description": "implicit seed equals srand(1)"},
+  {"id": "same_seed_replay_marker", "description": "same seed replay repeatability"},
+  {"id": "seed_reset_prefix_marker", "description": "seed reset prefix concatenation"},
+  {"id": "sequence_portability_limit_marker", "description": "sequence is implementation-specific"},
+  {"id": "toy_divisible_modulo_marker", "description": "divisible modulo enumeration"},
+  {"id": "toy_nondivisible_modulo_marker", "description": "nondivisible modulo enumeration"},
+  {"id": "rejection_threshold_marker", "description": "rejection threshold calculation"},
+  {"id": "rejection_uniformity_marker", "description": "rejection accepted-domain uniformity"},
+  {"id": "power_of_two_bound_marker", "description": "power-of-two bound"},
+  {"id": "low_bit_projection_marker", "description": "fixed low-bit synthetic projection"},
+  {"id": "bounded_helper_guard_marker", "description": "bounded helper guard checks"},
+  {"id": "actual_rand_modulo_local_counts_marker", "description": "local rand() % 10 counts"},
+  {"id": "three_item_shuffle_modulo_marker", "description": "three-item shuffle modulo bias"},
+  {"id": "three_item_shuffle_accepted_draw_space_marker", "description": "three-item shuffle accepted draws"},
+  {"id": "tiny_minibatch_index_sampler_marker", "description": "tiny minibatch index sampler"},
+  {"id": "range_reduction_not_rng_quality_marker", "description": "range reduction does not establish RNG quality"},
+  {"id": "no_global_rng_or_ml_validity_claim_marker", "description": "no global RNG or ML validity claim"}
+]

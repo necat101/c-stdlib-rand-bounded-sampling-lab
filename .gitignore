@@ -1,0 +1,10 @@
+rand_lab
+rand_lab.exe
+*.o
+*.obj
+zig-cache/
+.zig-cache/
+__pycache__/
+*.pyc
+*regen*
+*tmp*
