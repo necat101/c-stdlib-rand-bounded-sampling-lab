@@ -1,10 +1,12 @@
 rand_lab
 rand_lab.exe
+rand_lab_check
+rand_lab_check.exe
 *.o
 *.obj
 zig-cache/
 .zig-cache/
 __pycache__/
 *.pyc
-*regen*
-*tmp*
+*normalized*
+*regenerated*
